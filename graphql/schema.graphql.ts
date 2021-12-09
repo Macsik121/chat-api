@@ -6,15 +6,14 @@ const typeDefs: string = `
 
     type Chat {
         id: Int
-        messages: [chatMessages]
-        avatar: String
+        messages: [chatMessages]!
+        competitors: [Int!]!
     }
 
     type User {
         name: String
         email: String
         password: String
-        chats: [Chat]
         id: Int!
     }
 
@@ -42,6 +41,7 @@ const typeDefs: string = `
 
     type Query {
         messages: [chatMessages!]!
+        chats(id: Int!): [Chat]
         generateJwt(user: UserInput!): String!
         generateNewJwt(name: String!): String!
         signIn(user: UserInput!): ServerResponse!
@@ -51,6 +51,7 @@ const typeDefs: string = `
     type Mutation {
         saveMessage(message: MessageInput!, chat: Int!): String!
         signUp(user: UserInput!): ServerResponse!
+        createRoom(competitors: [Int!]): ServerResponse!
     }
 `;
 

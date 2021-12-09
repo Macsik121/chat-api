@@ -26,47 +26,53 @@ interface ServerResponse {
     success: boolean;
 }
 
-interface MessageArgs {
-    message: Message
-    chat: number
-}
-
-async function getAllTheMessages() {
+async function getAllTheMessages(_: any, { id }: { id: number }) {
     try {
         const db: any = dbActions.getDb();
-        const messages: Array<Message> = await db.collection('messages').find().toArray();
+        const messages: Array<Message> = await db.collection('rooms').find({ competitors: id }).toArray();
         return messages;
     } catch (error) {
         console.log(error);
     }
 }
 
+async function createRoom(_: any, {
+    competitors
+}: {
+    competitors: Array<Number>
+}): Promise<ServerResponse> {
+    const db: any = dbActions.getDb();
+    const id = await db.collection('chatID').findOne();
+    await db.collection('rooms').insertOne({
+        id,
+        messages: [],
+        competitors
+    })
+    return {
+        message: 'The room is created successfully',
+        success: true
+    }
+}
+
 async function saveMessage(_: any, {
     message,
     chat
-}: MessageArgs) {
+}: {
+    message: Message
+    chat: number
+}) {
     try {
         const db: any = dbActions.getDb();
         await db
-            .collection('users')
+            .collection('rooms')
             .updateOne(
                 {
-                    id: message.owner
+                    id: chat
                 },
                 {
                     $push: {
-                        'chats.$[chat].messages': {
-                            owner: message.owner,
-                            text: message.text
-                        }
+                        messages: message
                     }
-                },
-                {
-                    arrayFilters: [
-                        {
-                            'chats.chat.id': chat
-                        }
-                    ]
                 }
             );
         return 'everything is successfully completed';
@@ -122,13 +128,11 @@ async function signUp(_: unknown, {
     }
     const salt = await bcrypt.genSalt(12);
     user.password = await bcrypt.hash(password, salt);
-    user.chats = [];
-    const lastUser = db.users.find().sort({ id: -1 }).limit(1);
-    user.id = lastUser.id + 1;
+    const lastUser: Array<User | { id: number }> = await db.collection('users').find().sort({ id: -1 }).limit(1).toArray();
+    if (lastUser.length == 0) lastUser.push({ id: 0 });
+    user.id = lastUser[0].id + 1;
     await db.collection('users').insertOne(user);
-    const token: string = generatejwt({
-        ...user
-    });
+    const token: string = generatejwt(user);
     return {
         success: true,
         message: token
@@ -222,11 +226,13 @@ const resolvers = {
         generateJwt,
         generateNewJwt,
         signIn,
-        searchUsers
+        searchUsers,
+        chats: getAllTheMessages
     },
     Mutation: {
         saveMessage,
-        signUp
+        signUp,
+        createRoom
     }
 }
 
