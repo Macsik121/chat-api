@@ -51,16 +51,20 @@ async function createRoom(_: any, {
     competitors,
     message,
     title,
-    isGroup = false
+    isGroup = false,
+    id
 }: {
     competitors: Array<Number>,
     message: Message,
     title: string,
-    isGroup: boolean
-}): Promise<ServerResponse> {
+    isGroup: boolean,
+    id: number
+}): Promise<number> {
     const db: any = dbActions.getDb();
-    let id = await db.collection('roomsId').findOne();
-    id = id.id;
+    if (!id) {
+        const gottenId = await db.collection('roomsId').findOne();
+        id = gottenId.id;
+    }
     if (isGroup) {
         await db.collection('rooms').insertOne({
             id,
@@ -262,6 +266,12 @@ async function searchUsers(_: unknown, {
     return usersToReturn;
 }
 
+async function chatId(): Promise<number> {
+    const db: any = dbActions.getDb();
+    const id = await db.collection('roomsId').findOne();
+    return id.id;
+}
+
 const resolvers = {
     Query: {
         messages: getAllTheMessages,
@@ -269,7 +279,8 @@ const resolvers = {
         generateNewJwt,
         signIn,
         searchUsers,
-        chats: getAllTheMessages
+        chats: getAllTheMessages,
+        chatId
     },
     Mutation: {
         saveMessage,

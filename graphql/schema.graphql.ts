@@ -57,6 +57,7 @@ const typeDefs: string = `
         generateNewJwt(name: String!): String!
         signIn(user: UserInput!): ServerResponse!
         searchUsers(search: String!, id: Int!): [User]
+        chatId: Int!
     }
 
     type Mutation {
@@ -66,7 +67,8 @@ const typeDefs: string = `
             competitors: [CompetitorsInput!]!,
             message: MessageInput!,
             title: String,
-            isGroup: Boolean
+            isGroup: Boolean,
+            id: Int
         ): Int!
     }
 `;
