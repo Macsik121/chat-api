@@ -9,7 +9,9 @@ interface Message {
 }
 
 interface Chat {
+    id: number;
     title: string;
+    competitors: number[];
     messages: string;
 }
 
@@ -29,7 +31,16 @@ interface ServerResponse {
 async function getAllTheMessages(_: any, { id }: { id: number }) {
     try {
         const db: any = dbActions.getDb();
-        const messages: Array<Message> = await db.collection('rooms').find({ competitors: id }).toArray();
+        const messages: Array<Message> = (
+            await db
+                .collection('rooms')
+                .find({
+                    competitors: {
+                        $elemMatch: { id }
+                    }
+                })
+                .toArray()
+        );
         return messages;
     } catch (error) {
         console.log(error);
@@ -37,21 +48,35 @@ async function getAllTheMessages(_: any, { id }: { id: number }) {
 }
 
 async function createRoom(_: any, {
-    competitors
+    competitors,
+    message,
+    title,
+    isGroup = false
 }: {
-    competitors: Array<Number>
+    competitors: Array<Number>,
+    message: Message,
+    title: string,
+    isGroup: boolean
 }): Promise<ServerResponse> {
     const db: any = dbActions.getDb();
-    const id = await db.collection('chatID').findOne();
-    await db.collection('rooms').insertOne({
-        id,
-        messages: [],
-        competitors
-    })
-    return {
-        message: 'The room is created successfully',
-        success: true
+    let id = await db.collection('roomsId').findOne();
+    id = id.id;
+    if (isGroup) {
+        await db.collection('rooms').insertOne({
+            id,
+            title,
+            competitors,
+            messages: [ message ]
+        });
+    } else {
+        await db.collection('rooms').insertOne({
+            id,
+            competitors,
+            messages: [ message ]
+        });
     }
+    await db.collection('roomsId').updateOne({}, { $inc: { id: 1 } });
+    return id;
 }
 
 async function saveMessage(_: any, {
@@ -100,8 +125,19 @@ function generateJwt(_: unknown, { user }: GenerateJwtArgs) {
 
 async function generateNewJwt(_: unknown, { name }: { name: string }) {
     const db = dbActions.getDb();
-    const user = await db.collection('users').findOne({ name });
+    const user: User & {
+        _id: number
+    } | {
+        _id?: number,
+        password?: string
+    } = (
+        await db
+            .collection('users')
+            .findOne({ name })
+    )
     const secret: string = process.env.secretOrKeyJWT || '';
+    delete user.password;
+    delete user._id;
     const token = jwt.sign(user, secret);
     return token;
 }
@@ -167,11 +203,15 @@ async function signIn(_: unknown, {
 
 interface SearchUsersArgs {
     search: string
+    id: number
 }
 
-async function searchUsers(_: unknown, { search }: SearchUsersArgs) {
+async function searchUsers(_: unknown, {
+    search,
+    id
+}: SearchUsersArgs) {
     const db: any = dbActions.getDb();
-    const returnLimit = 5;
+    // const returnLimit = 5;
     search = search.toLocaleLowerCase();
     const users: Array<User> = (
         await db
@@ -202,19 +242,21 @@ async function searchUsers(_: unknown, { search }: SearchUsersArgs) {
         return matches;
     }
     for(let i: number = 0; i < users.length; i++) {
-        if (usersToReturn.length >= returnLimit) {
-            break;
-        }
-        const user = users[i];
-        user.password = '';
-        user.email = '';
-        let userFound: boolean = false;
-        userFound = strongSearch(user.name);
-        if (!userFound) {
-            userFound = strongSearch(user.email);
-        }
-        if (userFound) {
-            usersToReturn.push(user);
+        // if (usersToReturn.length >= returnLimit) {
+        //     break;
+        // }
+        const user: User = users[i];
+        if (!(user.id == id)) {
+            user.password = '';
+            user.email = '';
+            let userFound: boolean = false;
+            userFound = strongSearch(user.name);
+            if (!userFound) {
+                userFound = strongSearch(user.email);
+            }
+            if (userFound) {
+                usersToReturn.push(user);
+            }
         }
     }
     return usersToReturn;
