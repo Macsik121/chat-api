@@ -1,11 +1,30 @@
 require('dotenv').config();
+import { GraphQLScalarType, Kind } from 'graphql';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import dbActions from '../db';
 
+const dateScalar = new GraphQLScalarType({
+    name: 'Date',
+    description: 'Date custom scalar type',
+    serialize(value: any) {
+      return value.getTime();
+    },
+    parseValue(value: any) {
+      return new Date(value);
+    },
+    parseLiteral(ast) {
+      if (ast.kind === Kind.INT) {
+        return new Date(parseInt(ast.value, 10));
+      }
+      return null;
+    },
+});
+
 interface Message {
     text: string;
     owner: string;
+    date: Date
 }
 
 interface Chat {
@@ -21,6 +40,7 @@ interface User {
     email: string;
     password: string;
     chats?: Array<Chat>
+    lastSeen?: Date
 }
 
 interface ServerResponse {
@@ -65,6 +85,9 @@ async function createRoom(_: any, {
         const gottenId = await db.collection('roomsId').findOne();
         id = gottenId.id;
     }
+    if (!message.date) {
+        message.date = new Date();
+    }
     if (isGroup) {
         await db.collection('rooms').insertOne({
             id,
@@ -92,6 +115,9 @@ async function saveMessage(_: any, {
 }) {
     try {
         const db: any = dbActions.getDb();
+        if (!message.date) {
+            message.date = new Date();
+        }
         await db
             .collection('rooms')
             .updateOne(
@@ -171,6 +197,7 @@ async function signUp(_: unknown, {
     const lastUser: Array<User | { id: number }> = await db.collection('users').find().sort({ id: -1 }).limit(1).toArray();
     if (lastUser.length == 0) lastUser.push({ id: 0 });
     user.id = lastUser[0].id + 1;
+    user.lastSeen = new Date();
     await db.collection('users').insertOne(user);
     const token: string = generatejwt(user);
     return {
@@ -255,9 +282,6 @@ async function searchUsers(_: unknown, {
             user.email = '';
             let userFound: boolean = false;
             userFound = strongSearch(user.name);
-            if (!userFound) {
-                userFound = strongSearch(user.email);
-            }
             if (userFound) {
                 usersToReturn.push(user);
             }
@@ -272,7 +296,15 @@ async function chatId(): Promise<number> {
     return id.id;
 }
 
+async function updateLastSeen(_: any, {
+    id
+}: any) {
+    const db = dbActions.getDb();
+    await db.collection('users').updateOne({ id }, { lastSeen: new Date() });
+}
+
 const resolvers = {
+    Date: dateScalar,
     Query: {
         messages: getAllTheMessages,
         generateJwt,
@@ -285,7 +317,8 @@ const resolvers = {
     Mutation: {
         saveMessage,
         signUp,
-        createRoom
+        createRoom,
+        updateLastSeen
     }
 }
 

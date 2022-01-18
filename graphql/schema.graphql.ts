@@ -1,7 +1,10 @@
 const typeDefs: string = `
+    scalar Date
+
     type chatMessage {
         text: String!
         owner: Int!
+        date: Date
     }
 
     type Competitor {
@@ -21,11 +24,13 @@ const typeDefs: string = `
         email: String
         password: String
         id: Int!
+        lastSeen: Date
     }
 
     input MessageInput {
         text: String!
         owner: Int!
+        date: Date
     }
 
     input ChatInput {
@@ -70,6 +75,7 @@ const typeDefs: string = `
             isGroup: Boolean,
             id: Int
         ): Int!
+        updateLastSeen(id: Int!): Date
     }
 `;
 
