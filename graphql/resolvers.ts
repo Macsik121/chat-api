@@ -331,6 +331,7 @@ async function updateLastSeen(_: any, { id, online }: { id: number; online: bool
                 ]
             }
         );
+    return lastSeen;
 }
 
 const resolvers = {
