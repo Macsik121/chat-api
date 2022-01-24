@@ -10,6 +10,8 @@ const typeDefs: string = `
     type Competitor {
         id: Int!
         name: String
+        lastSeen: Date
+        online: Boolean
     }
 
     type Chat {
@@ -25,6 +27,7 @@ const typeDefs: string = `
         password: String
         id: Int!
         lastSeen: Date
+        online: Boolean
     }
 
     input MessageInput {
@@ -75,7 +78,7 @@ const typeDefs: string = `
             isGroup: Boolean,
             id: Int
         ): Int!
-        updateLastSeen(id: Int!): Date
+        updateLastSeen(id: Int!, online: Boolean!): Date
     }
 `;
 

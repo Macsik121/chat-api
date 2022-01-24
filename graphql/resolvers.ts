@@ -39,8 +39,9 @@ interface User {
     name: string;
     email: string;
     password: string;
-    chats?: Array<Chat>
-    lastSeen?: Date
+    chats?: Array<Chat>;
+    lastSeen?: Date;
+    online: boolean;
 }
 
 interface ServerResponse {
@@ -185,7 +186,6 @@ async function signUp(_: unknown, {
         await db.collection('users').findOne({ name }) ||
         await db.collection('users').findOne({ email })
     );
-
     if (foundUser) {
         return {
             message: 'This user already exists',
@@ -194,11 +194,16 @@ async function signUp(_: unknown, {
     }
     const salt = await bcrypt.genSalt(12);
     user.password = await bcrypt.hash(password, salt);
+
     const lastUser: Array<User | { id: number }> = await db.collection('users').find().sort({ id: -1 }).limit(1).toArray();
     if (lastUser.length == 0) lastUser.push({ id: 0 });
+
     user.id = lastUser[0].id + 1;
     user.lastSeen = new Date();
+    user.online = true;
+
     await db.collection('users').insertOne(user);
+
     const token: string = generatejwt(user);
     return {
         success: true,
@@ -296,11 +301,36 @@ async function chatId(): Promise<number> {
     return id.id;
 }
 
-async function updateLastSeen(_: any, {
-    id
-}: any) {
+async function updateLastSeen(_: any, { id, online }: { id: number; online: boolean; }) {
     const db = dbActions.getDb();
-    await db.collection('users').updateOne({ id }, { lastSeen: new Date() });
+    const lastSeen = new Date();
+    await db.collection('users')
+        .updateOne(
+            { id },
+            {
+                $set: {
+                    lastSeen,
+                    online
+                }
+            }
+    );
+    await db.collection('rooms')
+        .updateMany(
+            {},
+            {
+                $set: {
+                    'competitors.$[competitor].lastSeen': lastSeen,
+                    'competitors.$[competitor].online': online
+                }
+            },
+            {
+                arrayFilters: [
+                    {
+                        'competitor.id': id
+                    }
+                ]
+            }
+        );
 }
 
 const resolvers = {
