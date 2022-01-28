@@ -2,7 +2,13 @@ require('dotenv').config();
 import { GraphQLScalarType, Kind } from 'graphql';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import dbActions from '../db';
+import { getDb } from '../db';
+import {
+    User,
+    Chat,
+    Message,
+    ServerResponse
+} from '../interfaces';
 
 const dateScalar = new GraphQLScalarType({
     name: 'Date',
@@ -21,37 +27,9 @@ const dateScalar = new GraphQLScalarType({
     },
 });
 
-interface Message {
-    text: string;
-    owner: string;
-    date: Date
-}
-
-interface Chat {
-    id: number;
-    title: string;
-    competitors: number[];
-    messages: string;
-}
-
-interface User {
-    id: number;
-    name: string;
-    email: string;
-    password: string;
-    chats?: Array<Chat>;
-    lastSeen?: Date;
-    online: boolean;
-}
-
-interface ServerResponse {
-    message: string;
-    success: boolean;
-}
-
 async function getAllTheMessages(_: any, { id }: { id: number }) {
     try {
-        const db: any = dbActions.getDb();
+        const db: any = getDb();
         const messages: Array<Message> = (
             await db
                 .collection('rooms')
@@ -81,7 +59,7 @@ async function createRoom(_: any, {
     isGroup: boolean,
     id: number
 }): Promise<number> {
-    const db: any = dbActions.getDb();
+    const db: any = getDb();
     if (!id) {
         const gottenId = await db.collection('roomsId').findOne();
         id = gottenId.id;
@@ -115,7 +93,7 @@ async function saveMessage(_: any, {
     chat: number
 }) {
     try {
-        const db: any = dbActions.getDb();
+        const db: any = getDb();
         if (!message.date) {
             message.date = new Date();
         }
@@ -155,7 +133,7 @@ function generateJwt(_: unknown, { user }: GenerateJwtArgs) {
 }
 
 async function generateNewJwt(_: unknown, { name }: { name: string }) {
-    const db = dbActions.getDb();
+    const db = getDb();
     const user: User & {
         _id: number
     } | {
@@ -176,7 +154,7 @@ async function generateNewJwt(_: unknown, { name }: { name: string }) {
 async function signUp(_: unknown, {
     user
 }: GenerateJwtArgs): Promise<ServerResponse> {
-    const db = dbActions.getDb();
+    const db = getDb();
     const {
         name,
         email,
@@ -207,33 +185,39 @@ async function signUp(_: unknown, {
     const token: string = generatejwt(user);
     return {
         success: true,
-        message: token
+        message: token,
+        payload: {
+            id: user.id
+        }
     };
 }
 
 async function signIn(_: unknown, {
     user
 }: GenerateJwtArgs): Promise<ServerResponse> {
-    const db = dbActions.getDb();
-    const possibleUser: User = (
+    const db = getDb();
+    const foundUser: User = (
         await db.collection('users').findOne({ name: user.name }) ||
         await db.collection('users').findOne({ email: user.name })
     );
-    if (!possibleUser) {
+    if (!foundUser) {
         return {
             message: 'This user does not exist',
             success: false
         };
     }
-    if (!(await bcrypt.compare(user.password, possibleUser.password))) {
+    if (!(await bcrypt.compare(user.password, foundUser.password))) {
         return {
             message: 'You wrote a wrong password',
             success: false
         };
     }
     return {
-        message: generatejwt(possibleUser),
-        success: true
+        message: generatejwt(foundUser),
+        success: true,
+        payload: {
+            id: foundUser
+        }
     };
 }
 
@@ -246,7 +230,7 @@ async function searchUsers(_: unknown, {
     search,
     id
 }: SearchUsersArgs) {
-    const db: any = dbActions.getDb();
+    const db: any = getDb();
     // const returnLimit = 5;
     search = search.toLocaleLowerCase();
     const users: Array<User> = (
@@ -296,13 +280,13 @@ async function searchUsers(_: unknown, {
 }
 
 async function chatId(): Promise<number> {
-    const db: any = dbActions.getDb();
+    const db: any = getDb();
     const id = await db.collection('roomsId').findOne();
     return id.id;
 }
 
 async function updateLastSeen(_: any, { id, online }: { id: number; online: boolean; }) {
-    const db = dbActions.getDb();
+    const db = getDb();
     const lastSeen = new Date();
     await db.collection('users')
         .updateOne(

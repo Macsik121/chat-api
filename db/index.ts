@@ -5,11 +5,11 @@ const uri: string = "mongodb+srv://Macsick121:AsDf1234@cluster0.dtorr.mongodb.ne
 
 let db: any;
 
-function getDb() {
+export function getDb() {
     return db;
 }
 
-async function connectToDb() {
+export async function connectToDb() {
     try {
         const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
         await client.connect();
@@ -20,7 +20,3 @@ async function connectToDb() {
     }
 }
 
-export default {
-    connectToDb,
-    getDb
-}
