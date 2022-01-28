@@ -216,7 +216,7 @@ async function signIn(_: unknown, {
         message: generatejwt(foundUser),
         success: true,
         payload: JSON.stringify({
-            id: foundUser
+            id: foundUser.id
         })
     };
 }
