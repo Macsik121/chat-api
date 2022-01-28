@@ -56,6 +56,7 @@ const typeDefs: string = `
     type ServerResponse {
         success: Boolean
         message: String!
+        payload: String!
     }
 
     type Query {

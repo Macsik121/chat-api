@@ -186,9 +186,9 @@ async function signUp(_: unknown, {
     return {
         success: true,
         message: token,
-        payload: {
+        payload: JSON.stringify({
             id: user.id
-        }
+        })
     };
 }
 
@@ -215,9 +215,9 @@ async function signIn(_: unknown, {
     return {
         message: generatejwt(foundUser),
         success: true,
-        payload: {
+        payload: JSON.stringify({
             id: foundUser
-        }
+        })
     };
 }
 
