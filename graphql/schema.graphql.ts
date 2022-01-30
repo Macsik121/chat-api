@@ -51,6 +51,7 @@ const typeDefs: string = `
     input CompetitorsInput {
         id: Int!
         name: String
+        online: Boolean
     }
 
     type ServerResponse {
