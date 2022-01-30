@@ -52,6 +52,7 @@ const typeDefs: string = `
         id: Int!
         name: String
         online: Boolean
+	lastSeen: Date
     }
 
     type ServerResponse {
